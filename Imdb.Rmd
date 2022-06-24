@@ -1,0 +1,172 @@
+---
+title: "FinalProject"
+author: "Lusine Snkhchyan"
+date: '2022-06-24'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+# load libraries (quietly stops all the messages appearing)
+library(readr, quietly = TRUE)
+library(dplyr, quietly = TRUE)
+install.packages("DT")
+library(DT, quietly = TRUE)
+library(ggplot2)
+
+# load imdb and bechdel
+movies_imdb <- read_csv("https://raw.githubusercontent.com/andrewmoles2/rTrainIntroduction/main/r-data-wrangling-1/data/IMDb%20movies.csv")
+
+bechdel <- read_csv("https://raw.githubusercontent.com/andrewmoles2/rTrainIntroduction/main/r-data-wrangling-1/data/raw_bechdel.csv")
+
+# fix imdb id key
+movies_imdb$imdb_title_id <- parse_number(movies_imdb$imdb_title_id)
+
+# join data (left join)
+imdb_bechdel <- left_join(x = movies_imdb, y = bechdel,
+                          by = c("imdb_title_id" = "imdb_id", "year", "title"))
+
+# review the data
+# just looking at Alfred Hitchcock movies in this example
+imdb_bechdel %>%
+  filter(grepl("Alfred Hitchcock", director)) %>%
+  datatable()
+
+
+head(imdb_bechdel)
+dim(imdb_bechdel)
+colnames(imdb_bechdel)
+```
+
+```{r}
+
+install.packages("readr")
+install.packages("DT")
+# load libraries (quietly stops all the messages appearing)
+library(readr, quietly = TRUE)
+library(dplyr, quietly = TRUE)
+library(DT, quietly = TRUE)
+library(stringr)
+install.packages('ggplot2')
+library(ggplot2)
+
+# load imdb and bechdel
+movies_imdb <- read_csv("https://raw.githubusercontent.com/andrewmoles2/rTrainIntroduction/main/r-data-wrangling-1/data/IMDb%20movies.csv")
+
+bechdel <- read_csv("https://raw.githubusercontent.com/andrewmoles2/rTrainIntroduction/main/r-data-wrangling-1/data/raw_bechdel.csv")
+
+# fix imdb id key
+movies_imdb$imdb_title_id <- parse_number(movies_imdb$imdb_title_id)
+
+# join data (left join)
+imdb_bechdel <- left_join(x = movies_imdb, y = bechdel,
+                          by = c("imdb_title_id" = "imdb_id", "year", "title"))
+
+
+
+
+
+
+
+top_genre <- head(imdb_bechdel %>%
+  mutate(lang_count = str_split(language, ",") %>% lengths()) %>%
+  mutate(genre_count = str_split(genre, ",") %>% lengths()) %>%
+  mutate(country_count = str_split(country, ",") %>% lengths()) %>%
+  filter(genre_count == 1) %>%
+  group_by(genre) %>%
+  count() %>%
+  arrange(desc(n)), 6)
+
+
+
+
+ttt <- imdb_bechdel %>%
+  inner_join(top_genre, by = c('genre' = 'genre')) %>%
+  select(year, genre, duration) %>%
+  group_by(year, genre) %>%
+  mutate(av_duration = mean(duration)) %>%
+  select(-duration) %>%
+  distinct()
+
+
+
+ggplot(ttt) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 18)) +
+  theme(axis.title.x = element_text(size = 15)) +
+  theme(axis.title.y = element_text(size = 15)) +
+  theme(axis.text.x = element_text(size = 10)) +
+  theme(axis.text.y = element_text(size = 10)) +
+  theme(plot.caption = element_text(size = 12)) +
+  ggtitle("For movies with 1 genre, average duration over time") +
+  facet_wrap(~genre, ncol = 3) +
+  geom_line(aes(x = year, y = av_duration, color = genre)) +
+  # geom_smooth(aes(x = year, y = av_duration)) +
+  scale_x_continuous("Year") +
+  scale_y_continuous("Average Duration")
+
+
+
+
+# Select movies with only 1 language (top 6 languages)
+top_lang <- head(imdb_bechdel %>%
+  mutate(lang_count = str_split(language, ",") %>% lengths()) %>%
+  filter(lang_count == 1 & is.na(language) == FALSE & language != 'None') %>%
+  group_by(language) %>%
+  count() %>%
+  arrange(desc(n)),6)
+
+
+
+
+zzz <- imdb_bechdel %>%
+  inner_join(top_lang, by = c('language' = 'language')) %>%
+  select(imdb_title_id, year, language, reviews_from_users, reviews_from_critics) %>%
+  filter(is.na(reviews_from_users) == FALSE & is.na(reviews_from_critics) == FALSE)
+
+
+ggplot(data = zzz) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 18)) +
+  theme(axis.title.x = element_text(size = 15)) +
+  theme(axis.title.y = element_text(size = 15)) +
+  theme(axis.text.x = element_text(size = 10)) +
+  theme(axis.text.y = element_text(size = 10)) +
+  theme(plot.caption = element_text(size = 12)) +
+  ggtitle("User Review vs Critics Review") +
+  facet_wrap(~language, ncol = 3) +
+  geom_point(aes(x = reviews_from_users, y = reviews_from_critics, color = language)) +
+  geom_smooth(aes(x = reviews_from_users, y = reviews_from_critics)) +
+  scale_x_continuous("User Reviews") +
+  scale_y_continuous("Critics Reviews")
+
+
+
+
+# Select Top 4 directors
+top_directors <- imdb_bechdel %>%
+  filter(str_detect(director, 'Martin Scorsese|Steven Spielberg|Christopher Nolan|Quentin Tarantino|Clint Eastwood|David Fincher')) %>%
+  filter(!str_detect(director, ',')) %>%
+  group_by(year, director) %>%
+  mutate(av_user_rev = mean(reviews_from_users)) %>%
+  select(director, year, av_user_rev)
+
+ggplot(data = top_directors) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 18)) +
+  theme(axis.title.x = element_text(size = 15)) +
+  theme(axis.title.y = element_text(size = 15)) +
+  theme(axis.text.x = element_text(size = 10)) +
+  theme(axis.text.y = element_text(size = 10)) +
+  theme(plot.caption = element_text(size = 12)) +
+  theme(legend.position = "bottom") +
+  ggtitle("Average User Review for Top Directors Over Time") +
+  geom_line(aes(x = year, y = av_user_rev, color = director)) +
+  scale_x_continuous("Year", breaks = seq(1970, 2020, 10)) +
+  scale_y_continuous("User Reviews", labels = scales::comma, breaks = seq(1000, 7000, 1000))
+
+
+```
+
